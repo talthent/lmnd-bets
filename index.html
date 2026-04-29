@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>$LMND Earnings Day</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='56'%3E%F0%9F%8D%8B%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --bg-2: #141822;
+      --bg-3: #1c2230;
+      --fg: #f4f6fb;
+      --fg-dim: #8b93a7;
+      --fg-mid: #c5cad8;
+      --line: #2a3142;
+      --pink: #ff5fa2;
+      --yellow: #ffd84a;
+      --green: #2ecc71;
+      --blue: #3b82f6;
+      --gold: #ffc83d;
+      --silver: #c9d1dd;
+      --up: #2ecc71;
+      --down: #ff4d6b;
+      --shadow: 0 12px 40px rgba(0,0,0,.45);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; min-height: 100vh;
+      background: radial-gradient(1200px 600px at 80% -10%, #1a1f3a 0%, var(--bg) 60%) fixed, var(--bg);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── Password gate ─── */
+    #gate {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(800px 400px at 50% 30%, #1a1f3a 0%, #060810 70%);
+    }
+    #gateForm {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 36px 32px;
+      width: min(380px, 92vw);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    #gateForm h1 {
+      margin: 0 0 6px; font-size: 22px; letter-spacing: -0.01em;
+    }
+    #gateForm p { margin: 0 0 20px; color: var(--fg-dim); font-size: 13px; }
+    #gatePw {
+      width: 100%; padding: 14px 16px; font-size: 16px;
+      background: var(--bg-3); color: var(--fg);
+      border: 1px solid var(--line); border-radius: 10px;
+      outline: none; text-align: center; letter-spacing: 0.4em;
+    }
+    #gatePw:focus { border-color: #4866ff; box-shadow: 0 0 0 3px rgba(72,102,255,.18); }
+    #gateForm button {
+      margin-top: 14px; width: 100%; padding: 12px 16px;
+      background: linear-gradient(180deg, #4866ff 0%, #3850dd 100%);
+      color: white; border: none; border-radius: 10px;
+      font-weight: 600; font-size: 15px; cursor: pointer;
+    }
+    #gateForm button:hover { filter: brightness(1.08); }
+    #gateErr {
+      margin-top: 10px; min-height: 18px; color: var(--down); font-size: 13px;
+    }
+
+    /* ─── App layout ─── */
+    main { max-width: 1280px; margin: 0 auto; padding: 32px 28px 80px; }
+
+    header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 32px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 14px;
+    }
+    .brand .logo {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, #ff5fa2, #ffd84a);
+      display: flex; align-items: center; justify-content: center; font-size: 24px;
+    }
+    .brand h1 {
+      margin: 0; font-size: 20px; letter-spacing: -0.01em; font-weight: 700;
+    }
+    .brand .sub { color: var(--fg-dim); font-size: 12px; margin-top: 2px; }
+
+    .market {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 999px;
+      background: var(--bg-3); border: 1px solid var(--line);
+      font-size: 11px; color: var(--fg-mid);
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .badge .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--fg-dim);
+    }
+    .badge.live .dot { background: var(--up); box-shadow: 0 0 0 0 rgba(46,204,113,.7); animation: pulse 1.6s infinite; }
+    .badge.stale .dot { background: var(--yellow); }
+    .badge.error .dot { background: var(--down); }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(46,204,113,.6); }
+      70% { box-shadow: 0 0 0 8px rgba(46,204,113,0); }
+      100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
+    }
+    .updated { font-size: 11px; color: var(--fg-dim); }
+
+    .price-row {
+      display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
+      width: 100%;
+    }
+    .price {
+      font-size: clamp(56px, 9vw, 88px);
+      font-weight: 800; letter-spacing: -0.04em;
+      line-height: 1; font-variant-numeric: tabular-nums;
+    }
+    .change {
+      font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums;
+      padding: 6px 12px; border-radius: 10px;
+    }
+    .change.up { color: var(--up); background: rgba(46,204,113,.12); }
+    .change.down { color: var(--down); background: rgba(255,77,107,.12); }
+    .change.flat { color: var(--fg-dim); background: var(--bg-3); }
+
+    /* ─── Two-column layout ─── */
+    .layout {
+      display: grid; grid-template-columns: 1fr 320px; gap: 32px;
+      align-items: start;
+    }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+    .panel h2 {
+      margin: 0 0 18px;
+      font-size: 14px; font-weight: 600;
+      color: var(--fg-mid); text-transform: uppercase; letter-spacing: 0.08em;
+    }
+
+    /* ─── Range bar ─── */
+    .bar-wrap {
+      position: relative; padding: 0 8px 60px; margin-top: 6px;
+    }
+    .bar {
+      position: relative; height: 72px; border-radius: 16px;
+      display: flex; overflow: visible;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), inset 0 -3px 12px rgba(0,0,0,.3);
+    }
+    .seg {
+      position: relative; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: rgba(0,0,0,.78); font-weight: 700;
+      border-right: 1px solid rgba(0,0,0,.18);
+      overflow: hidden;
+      transition: filter .2s;
+    }
+    .seg.is-first { border-radius: 16px 0 0 16px; }
+    .seg.is-last  { border-radius: 0 16px 16px 0; border-right: none; }
+    .seg .seg-name { font-size: 15px; letter-spacing: -0.01em; }
+    .seg .seg-bet  { font-size: 12px; opacity: .75; font-weight: 600; }
+    .seg.leading {
+      filter: brightness(1.06);
+      box-shadow: inset 0 0 0 3px rgba(255,255,255,.5), inset 0 -3px 12px rgba(0,0,0,.3);
+    }
+    .seg .crown {
+      position: absolute; top: 6px; right: 8px;
+      font-size: 14px;
+    }
+    /* tighten labels for narrow segments */
+    .seg.tight .seg-bet { display: none; }
+    .seg.ultra-tight .seg-name { font-size: 11px; }
+
+    .ticks {
+      position: relative; height: 28px; margin-bottom: 8px;
+    }
+    .tick {
+      position: absolute; transform: translateX(-50%);
+      font-size: 11px; color: var(--fg-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .tick::after {
+      content: ""; display: block; width: 1px; height: 8px;
+      background: var(--line); margin: 4px auto 0;
+    }
+
+    .marker {
+      position: absolute; top: -14px; bottom: -14px;
+      width: 3px; background: var(--fg);
+      border-radius: 2px;
+      box-shadow: 0 0 0 2px rgba(0,0,0,.6), 0 0 18px rgba(255,255,255,.5);
+      transition: left .6s cubic-bezier(.4,.2,.2,1);
+      z-index: 5;
+    }
+    .marker::before {
+      content: ""; position: absolute; top: -8px; left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 10px solid var(--fg);
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
+    }
+    .marker .label {
+      position: absolute; bottom: -36px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--fg); color: var(--bg);
+      font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums;
+      padding: 4px 8px; border-radius: 6px;
+      white-space: nowrap;
+    }
+    .marker .label::before {
+      content: ""; position: absolute; top: -5px; left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 5px solid var(--fg);
+    }
+
+    /* ─── Standings list ─── */
+    .standings { margin-top: 32px; }
+    .bets { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+    .bet-row {
+      display: grid; grid-template-columns: 36px 1fr auto auto; align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      background: var(--bg-3);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      transition: transform .25s, border-color .25s;
+    }
+    .bet-row.medal-1 { border-color: var(--gold); background: linear-gradient(90deg, rgba(255,200,61,.12), var(--bg-3) 60%); }
+    .bet-row.medal-2 { border-color: var(--silver); background: linear-gradient(90deg, rgba(201,209,221,.10), var(--bg-3) 60%); }
+    .bet-rank { font-weight: 700; font-size: 18px; color: var(--fg-dim); text-align: center; }
+    .bet-row.medal-1 .bet-rank { color: var(--gold); }
+    .bet-row.medal-2 .bet-rank { color: var(--silver); }
+    .bet-name {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 600; font-size: 15px;
+    }
+    .swatch { width: 14px; height: 14px; border-radius: 4px; }
+    .bet-bet { font-variant-numeric: tabular-nums; color: var(--fg-mid); font-size: 14px; }
+    .bet-delta {
+      font-variant-numeric: tabular-nums; font-size: 13px;
+      color: var(--fg-dim);
+      padding: 3px 8px; background: var(--bg-2); border-radius: 6px;
+    }
+
+    /* ─── Sidebar leaderboard ─── */
+    .leaderboard { width: 100%; border-collapse: collapse; }
+    .leaderboard th, .leaderboard td {
+      text-align: left; padding: 10px 8px;
+      font-size: 14px; font-variant-numeric: tabular-nums;
+    }
+    .leaderboard th {
+      font-size: 11px; color: var(--fg-dim);
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--line);
+    }
+    .leaderboard td { border-bottom: 1px solid var(--line); }
+    .leaderboard tr:last-child td { border-bottom: none; }
+    .leaderboard .player {
+      display: flex; align-items: center; gap: 8px; font-weight: 600;
+    }
+    .leaderboard .num { width: 24px; color: var(--fg-dim); font-weight: 600; }
+    .leaderboard .medal { font-size: 16px; }
+
+    /* ─── Footer ─── */
+    .footer {
+      margin-top: 36px; text-align: center;
+      color: var(--fg-dim); font-size: 11px;
+    }
+    .footer a { color: var(--fg-dim); }
+    #lockBtn {
+      position: fixed; bottom: 16px; right: 16px;
+      background: var(--bg-3); border: 1px solid var(--line);
+      width: 36px; height: 36px; border-radius: 50%;
+      color: var(--fg-dim); cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #lockBtn:hover { color: var(--fg); }
+
+    .banner {
+      display: none;
+      margin-bottom: 20px; padding: 10px 14px;
+      background: rgba(255,77,107,.10); border: 1px solid rgba(255,77,107,.3);
+      border-radius: 10px; color: var(--down); font-size: 13px;
+    }
+    .banner.show { display: block; }
+  </style>
+</head>
+<body>
+
+  <div id="gate">
+    <form id="gateForm" autocomplete="off">
+      <h1>🍋 $LMND Bets</h1>
+      <p>enter the password to continue</p>
+      <input id="gatePw" type="password" inputmode="text" autocomplete="off" />
+      <button type="submit">Enter</button>
+      <div id="gateErr"></div>
+    </form>
+  </div>
+
+  <main id="app" hidden>
+    <header>
+      <div class="brand">
+        <div class="logo">🍋</div>
+        <div>
+          <h1>$LMND Earnings Day</h1>
+          <div class="sub" id="dateLine"></div>
+        </div>
+      </div>
+      <div class="market">
+        <span id="marketBadge" class="badge"><span class="dot"></span><span id="marketText">connecting…</span></span>
+        <span class="updated" id="updated"></span>
+      </div>
+      <div class="price-row">
+        <span id="price" class="price">—</span>
+        <span id="change" class="change flat">—</span>
+      </div>
+    </header>
+
+    <div class="banner" id="banner"></div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>Live winning ranges · $45 → $95</h2>
+        <div class="bar-wrap">
+          <div class="ticks" id="ticks"></div>
+          <div class="bar" id="bar">
+            <div class="marker" id="marker" style="left: 50%">
+              <div class="label" id="markerLabel">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="standings">
+          <h2>Standings</h2>
+          <ol class="bets" id="bets"></ol>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h2>All-time leaderboard</h2>
+        <table class="leaderboard">
+          <thead>
+            <tr><th class="num">#</th><th>Player</th><th>🥇</th><th>🥈</th></tr>
+          </thead>
+          <tbody id="lbBody"></tbody>
+        </table>
+      </aside>
+    </div>
+
+    <div class="footer">$LMND quote via Yahoo Finance · refreshes every 15s</div>
+    <button id="lockBtn" title="Lock and reset">🔒</button>
+  </main>
+
+<script>
+(() => {
+  // ─── Config ──────────────────────────────────────────
+  const PASSWORD = 'ff0083';
+  const SYMBOL = 'LMND';
+  const POLL_MS = 15000;
+  const BAR_MIN = 45;
+  const BAR_MAX = 95;
+
+  const BETS = [
+    { name: 'Adina', bet: 69.0, color: '#ff5fa2' },
+    { name: 'Yael',  bet: 69.9, color: '#ffd84a' },
+    { name: 'Tal',   bet: 79.9, color: '#2ecc71' },
+    { name: 'Nati',  bet: 80.0, color: '#3b82f6' },
+  ];
+
+  const LEADERBOARD = [
+    { name: 'Nati',  gold: 1, silver: 0 },
+    { name: 'Tal',   gold: 1, silver: 0 },
+    { name: 'Yael',  gold: 0, silver: 1 },
+    { name: 'Adina', gold: 0, silver: 1 },
+  ];
+
+  // ─── Range math ──────────────────────────────────────
+  const sorted = [...BETS].sort((a, b) => a.bet - b.bet);
+  const boundaries = [BAR_MIN];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    boundaries.push((sorted[i].bet + sorted[i+1].bet) / 2);
+  }
+  boundaries.push(BAR_MAX);
+  const segments = sorted.map((p, i) => ({
+    ...p,
+    lo: boundaries[i],
+    hi: boundaries[i+1],
+  }));
+  const span = BAR_MAX - BAR_MIN;
+  const pct = (v) => Math.max(0, Math.min(100, ((v - BAR_MIN) / span) * 100));
+
+  function leaderFor(price) {
+    return [...BETS].sort((a, b) => Math.abs(a.bet - price) - Math.abs(b.bet - price));
+  }
+
+  // ─── Password gate ───────────────────────────────────
+  const gate = document.getElementById('gate');
+  const app  = document.getElementById('app');
+  const gateForm = document.getElementById('gateForm');
+  const gatePw = document.getElementById('gatePw');
+  const gateErr = document.getElementById('gateErr');
+
+  function unlock() {
+    gate.style.display = 'none';
+    app.hidden = false;
+    init();
+  }
+
+  gateForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (gatePw.value === PASSWORD) {
+      localStorage.setItem('lmndBetsAuthed', '1');
+      unlock();
+    } else {
+      gateErr.textContent = 'wrong password';
+      gatePw.value = '';
+      gatePw.focus();
+    }
+  });
+
+  document.getElementById('lockBtn')?.addEventListener('click', () => {
+    localStorage.removeItem('lmndBetsAuthed');
+    location.reload();
+  });
+
+  // ─── Static rendering ────────────────────────────────
+  function init() {
+    document.getElementById('dateLine').textContent =
+      new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+
+    // bar segments
+    const bar = document.getElementById('bar');
+    const marker = document.getElementById('marker');
+    segments.forEach((s, idx) => {
+      const widthPct = ((s.hi - s.lo) / span) * 100;
+      const el = document.createElement('div');
+      el.className = 'seg';
+      if (idx === 0) el.classList.add('is-first');
+      if (idx === segments.length - 1) el.classList.add('is-last');
+      if (widthPct < 14) el.classList.add('tight');
+      if (widthPct < 9) el.classList.add('ultra-tight');
+      el.dataset.name = s.name;
+      el.style.width = widthPct + '%';
+      el.style.background = s.color;
+      el.innerHTML = `<div class="seg-name">${s.name}</div><div class="seg-bet">$${s.bet.toFixed(2)}</div>`;
+      bar.insertBefore(el, marker);
+    });
+
+    // ticks
+    const ticks = document.getElementById('ticks');
+    const tickValues = [BAR_MIN, ...sorted.slice(0, -1).map((p, i) => boundaries[i+1]), BAR_MAX];
+    tickValues.forEach(v => {
+      const t = document.createElement('div');
+      t.className = 'tick';
+      t.style.left = pct(v) + '%';
+      if (v === BAR_MIN) t.textContent = '<$' + v.toFixed(0);
+      else if (v === BAR_MAX) t.textContent = '>$' + v.toFixed(0);
+      else t.textContent = '$' + v.toFixed(2);
+      ticks.appendChild(t);
+    });
+
+    // leaderboard
+    const lbBody = document.getElementById('lbBody');
+    const ranked = [...LEADERBOARD].sort((a, b) =>
+      (b.gold - a.gold) || (b.silver - a.silver) || a.name.localeCompare(b.name)
+    );
+    ranked.forEach((p, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="num">${i+1}</td>
+        <td><div class="player">
+          <span class="swatch" style="background:${BETS.find(b => b.name === p.name)?.color || '#888'}"></span>
+          ${p.name}
+        </div></td>
+        <td>${p.gold ? `<span class="medal">🥇</span>×${p.gold}` : '—'}</td>
+        <td>${p.silver ? `<span class="medal">🥈</span>×${p.silver}` : '—'}</td>
+      `;
+      lbBody.appendChild(tr);
+    });
+
+    // initial standings render with no price
+    renderStandings(null);
+
+    // start polling
+    fetchPrice();
+    setInterval(() => {
+      if (!document.hidden) fetchPrice();
+    }, POLL_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) fetchPrice();
+    });
+  }
+
+  // ─── Live data ───────────────────────────────────────
+  let last = { price: null, prevClose: null, marketState: null, ts: null };
+
+  const TARGET = `https://query1.finance.yahoo.com/v8/finance/chart/${SYMBOL}?interval=1m&range=1d&includePrePost=true`;
+  const FETCH_TIMEOUT_MS = 9000;
+
+  // Tried in order; first one that returns parseable data wins.
+  // Both have proper CORS headers and were verified working from this machine.
+  const PROXIES = [
+    {
+      name: 'jina',
+      url: 'https://r.jina.ai/' + TARGET,
+      parse: async (r) => {
+        // r.jina.ai wraps body with a "Title: … URL Source: … Markdown Content:" preamble.
+        const text = await r.text();
+        const i = text.indexOf('{');
+        if (i < 0) throw new Error('no json in body');
+        return JSON.parse(text.slice(i));
+      },
+    },
+    {
+      name: 'allorigins',
+      url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(TARGET),
+      parse: (r) => r.json(),
+    },
+  ];
+
+  async function fetchWithTimeout(url, ms) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms);
+    try {
+      return await fetch(url, { cache: 'no-store', signal: ctl.signal });
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function setBadge(text, cls) {
+    const badge = document.getElementById('marketBadge');
+    const badgeText = document.getElementById('marketText');
+    if (!badge) return;
+    badge.className = 'badge ' + (cls || '');
+    badgeText.textContent = text;
+  }
+
+  async function fetchPrice() {
+    let j = null, lastErr = null;
+    for (const p of PROXIES) {
+      const t0 = performance.now();
+      setBadge(`trying ${p.name}…`, '');
+      try {
+        const r = await fetchWithTimeout(p.url, FETCH_TIMEOUT_MS);
+        if (!r.ok) throw new Error('http ' + r.status);
+        j = await p.parse(r);
+        if (j?.chart?.result?.[0]?.meta) {
+          console.log(`[${p.name}] ok in ${Math.round(performance.now()-t0)}ms`);
+          break;
+        }
+        throw new Error('no meta');
+      } catch (e) {
+        const ms = Math.round(performance.now() - t0);
+        console.warn(`[${p.name}] failed in ${ms}ms:`, e.message || e);
+        lastErr = e;
+        j = null;
+      }
+    }
+    try {
+      if (!j) throw lastErr || new Error('all proxies failed');
+      const meta = j.chart.result[0].meta;
+
+      const state = meta.marketState || 'UNKNOWN';
+      let price = meta.regularMarketPrice;
+      if (state === 'PRE' && meta.preMarketPrice != null) price = meta.preMarketPrice;
+      else if ((state === 'POST' || state === 'POSTPOST' || state === 'CLOSED') && meta.postMarketPrice != null) price = meta.postMarketPrice;
+
+      last = {
+        price,
+        prevClose: meta.chartPreviousClose ?? meta.previousClose ?? null,
+        marketState: state,
+        ts: Date.now(),
+      };
+      render(last, false);
+    } catch (err) {
+      console.warn('fetch failed', err);
+      render(last, true);
+    }
+  }
+
+  function render(state, errored) {
+    const priceEl = document.getElementById('price');
+    const changeEl = document.getElementById('change');
+    const marker = document.getElementById('marker');
+    const markerLabel = document.getElementById('markerLabel');
+    const updated = document.getElementById('updated');
+    const banner = document.getElementById('banner');
+    const badge = document.getElementById('marketBadge');
+    const badgeText = document.getElementById('marketText');
+
+    if (state.price == null) {
+      priceEl.textContent = '—';
+      changeEl.textContent = errored ? 'connection error' : '…loading';
+      changeEl.className = 'change flat';
+      banner.className = errored ? 'banner show' : 'banner';
+      banner.textContent = errored ? 'Could not reach Yahoo Finance — all proxies failed. Will keep retrying.' : '';
+      badge.className = 'badge error';
+      badgeText.textContent = errored ? 'offline' : 'connecting…';
+      return;
+    }
+
+    priceEl.textContent = '$' + state.price.toFixed(2);
+
+    if (state.prevClose != null) {
+      const diff = state.price - state.prevClose;
+      const pctChange = (diff / state.prevClose) * 100;
+      const sign = diff >= 0 ? '▲' : '▼';
+      changeEl.textContent = `${sign} ${Math.abs(diff).toFixed(2)} (${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(2)}%)`;
+      changeEl.className = 'change ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat');
+    } else {
+      changeEl.textContent = '—';
+      changeEl.className = 'change flat';
+    }
+
+    marker.style.left = pct(state.price) + '%';
+    markerLabel.textContent = '$' + state.price.toFixed(2);
+
+    const ageSec = Math.round((Date.now() - state.ts) / 1000);
+    if (errored && ageSec > 30) {
+      badge.className = 'badge stale';
+      badgeText.textContent = `stale ${ageSec}s`;
+      banner.className = 'banner show';
+      banner.textContent = `Live feed unavailable — showing last known price from ${ageSec}s ago.`;
+    } else {
+      banner.className = 'banner';
+      const labels = {
+        REGULAR: 'live',
+        PRE: 'pre-market',
+        PREPRE: 'pre-market',
+        POST: 'after-hours',
+        POSTPOST: 'after-hours',
+        CLOSED: 'closed',
+      };
+      const stateLabel = labels[state.marketState] || 'live';
+      badge.className = 'badge ' + (state.marketState === 'REGULAR' ? 'live' : '');
+      badgeText.textContent = stateLabel;
+    }
+    updated.textContent = `updated ${new Date(state.ts).toLocaleTimeString()}`;
+
+    // highlight leading segment
+    const ranking = leaderFor(state.price);
+    document.querySelectorAll('.seg').forEach(el => {
+      el.classList.remove('leading');
+      el.querySelector('.crown')?.remove();
+    });
+    const leadEl = document.querySelector(`.seg[data-name="${ranking[0].name}"]`);
+    if (leadEl) {
+      leadEl.classList.add('leading');
+      const c = document.createElement('div');
+      c.className = 'crown'; c.textContent = '👑';
+      leadEl.appendChild(c);
+    }
+
+    renderStandings(state.price);
+  }
+
+  function renderStandings(price) {
+    const list = document.getElementById('bets');
+    list.innerHTML = '';
+    const ranked = price == null
+      ? [...BETS].sort((a, b) => a.bet - b.bet)
+      : leaderFor(price);
+    ranked.forEach((p, i) => {
+      const li = document.createElement('li');
+      const medal = i === 0 ? 'medal-1' : i === 1 ? 'medal-2' : '';
+      li.className = 'bet-row ' + medal;
+      const delta = price == null ? '' : `Δ $${Math.abs(p.bet - price).toFixed(2)}`;
+      const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : (i+1);
+      li.innerHTML = `
+        <div class="bet-rank">${rank}</div>
+        <div class="bet-name"><span class="swatch" style="background:${p.color}"></span>${p.name}</div>
+        <div class="bet-bet">$${p.bet.toFixed(2)}</div>
+        <div class="bet-delta">${delta}</div>
+      `;
+      list.appendChild(li);
+    });
+  }
+
+  // ─── Boot ────────────────────────────────────────────
+  // Done last so every const / function above is fully initialized before
+  // unlock() (which may run synchronously when the user is already authed)
+  // can call init() / fetchPrice().
+  if (localStorage.getItem('lmndBetsAuthed') === '1') {
+    unlock();
+  } else {
+    setTimeout(() => gatePw.focus(), 50);
+  }
+})();
+</script>
+</body>
+</html>
