@@ -278,6 +278,29 @@
       padding: 3px 8px; background: var(--bg-2); border-radius: 6px;
     }
 
+    /* ─── Sidebar ─── */
+    .sidebar { display: flex; flex-direction: column; gap: 24px; }
+
+    .debts, .violations {
+      list-style: none; padding: 0; margin: 0;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .debts li, .violations li {
+      padding: 10px 12px;
+      background: var(--bg-3);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 13px; line-height: 1.4;
+    }
+    .debts .who { font-weight: 600; }
+    .debts .who .from { color: var(--down); }
+    .debts .who .to   { color: var(--up); }
+    .debts .meta, .violations .meta {
+      color: var(--fg-dim); font-size: 11px; margin-top: 2px;
+    }
+    .violations li { border-left: 3px solid var(--down); }
+    .violations .name { font-weight: 600; }
+
     /* ─── Sidebar leaderboard ─── */
     .leaderboard { width: 100%; border-collapse: collapse; }
     .leaderboard th, .leaderboard td {
@@ -372,14 +395,26 @@
         </div>
       </section>
 
-      <aside class="panel">
-        <h2>All-time leaderboard</h2>
-        <table class="leaderboard">
-          <thead>
-            <tr><th class="num">#</th><th>Player</th><th>🥇</th><th>🥈</th></tr>
-          </thead>
-          <tbody id="lbBody"></tbody>
-        </table>
+      <aside class="sidebar">
+        <div class="panel">
+          <h2>All-time leaderboard</h2>
+          <table class="leaderboard">
+            <thead>
+              <tr><th class="num">#</th><th>Player</th><th>🥇</th><th>🥈</th></tr>
+            </thead>
+            <tbody id="lbBody"></tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h2>Outstanding debts</h2>
+          <ul class="debts" id="debts"></ul>
+        </div>
+
+        <div class="panel">
+          <h2>Violations</h2>
+          <ul class="violations" id="violations"></ul>
+        </div>
       </aside>
     </div>
 
@@ -411,6 +446,15 @@
     { name: 'Tal',   gold: 1, silver: 0 },
     { name: 'Yael',  gold: 0, silver: 1 },
     { name: 'Adina', gold: 0, silver: 1 },
+  ];
+
+  // Top two on each earnings win a dinner paid for by the bottom two.
+  const DEBTS = [
+    { from: ['Yael', 'Nati'], to: ['Adina', 'Tal'], item: 'Dinner', note: 'unpaid since previous earnings' },
+  ];
+
+  const VIOLATIONS = [
+    { name: 'Yael', date: '2026-04-28', note: 'Submitted bet late' },
   ];
 
   // ─── Range math ──────────────────────────────────────
@@ -516,6 +560,44 @@
       `;
       lbBody.appendChild(tr);
     });
+
+    // debts
+    const swatchHtml = (n) => {
+      const c = BETS.find(b => b.name === n)?.color || '#888';
+      return `<span class="swatch" style="background:${c}"></span>${n}`;
+    };
+    const debtsEl = document.getElementById('debts');
+    if (DEBTS.length === 0) {
+      debtsEl.innerHTML = `<li style="color:var(--fg-dim)">No outstanding debts.</li>`;
+    } else {
+      DEBTS.forEach(d => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div class="who">
+            <span class="from">${d.from.map(swatchHtml).join(' & ')}</span>
+            <span style="color:var(--fg-dim)"> owe </span>
+            <span class="to">${d.to.map(swatchHtml).join(' & ')}</span>
+          </div>
+          <div class="meta">🍽️ ${d.item}${d.note ? ' · ' + d.note : ''}</div>
+        `;
+        debtsEl.appendChild(li);
+      });
+    }
+
+    // violations
+    const vioEl = document.getElementById('violations');
+    if (VIOLATIONS.length === 0) {
+      vioEl.innerHTML = `<li style="color:var(--fg-dim)">No violations on record.</li>`;
+    } else {
+      VIOLATIONS.forEach(v => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div class="name">${swatchHtml(v.name)}</div>
+          <div class="meta">${v.date} · ${v.note}</div>
+        `;
+        vioEl.appendChild(li);
+      });
+    }
 
     // initial standings render with no price
     renderStandings(null);
