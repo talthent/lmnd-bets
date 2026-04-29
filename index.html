@@ -3,9 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <title>$LMND Earnings Day</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='56'%3E%F0%9F%8D%8B%3C/text%3E%3C/svg%3E" />
   <style>
@@ -195,7 +192,6 @@
       font-size: 16px;
       filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
     }
-    /* shrink labels for narrow segments instead of hiding them */
     .seg .seg-name, .seg .seg-bet { white-space: nowrap; }
     .seg.tight .seg-name { font-size: 13px; }
     .seg.tight .seg-bet  { font-size: 11px; }
@@ -325,7 +321,6 @@
       margin-top: 36px; text-align: center;
       color: var(--fg-dim); font-size: 11px;
     }
-    .footer a { color: var(--fg-dim); }
     #lockBtn {
       position: fixed; bottom: 16px; right: 16px;
       background: var(--bg-3); border: 1px solid var(--line);
@@ -430,8 +425,7 @@
   const POLL_MS = 15000;
   const BAR_MIN = 45;
   const BAR_MAX = 95;
-  // Earnings day in NY local time. After this date we stop polling and freeze
-  // the page on the closing price of this day.
+  // After this date (NY time), polling stops and the page freezes on the close.
   const EARNINGS_DATE = '2026-04-29';
 
   const BETS = [
@@ -501,7 +495,7 @@
     }
   });
 
-  document.getElementById('lockBtn')?.addEventListener('click', () => {
+  document.getElementById('lockBtn').addEventListener('click', () => {
     localStorage.removeItem('lmndBetsAuthed');
     location.reload();
   });
@@ -511,7 +505,6 @@
     document.getElementById('dateLine').textContent =
       new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
-    // bar segments
     const bar = document.getElementById('bar');
     const marker = document.getElementById('marker');
     segments.forEach((s, idx) => {
@@ -529,9 +522,8 @@
       bar.insertBefore(el, marker);
     });
 
-    // ticks
     const ticks = document.getElementById('ticks');
-    const tickValues = [BAR_MIN, ...sorted.slice(0, -1).map((p, i) => boundaries[i+1]), BAR_MAX];
+    const tickValues = [BAR_MIN, ...boundaries.slice(1, -1), BAR_MAX];
     tickValues.forEach(v => {
       const t = document.createElement('div');
       t.className = 'tick';
@@ -542,7 +534,11 @@
       ticks.appendChild(t);
     });
 
-    // leaderboard
+    const swatchHtml = (n) => {
+      const c = BETS.find(b => b.name === n).color;
+      return `<span class="swatch" style="background:${c}"></span>${n}`;
+    };
+
     const lbBody = document.getElementById('lbBody');
     const ranked = [...LEADERBOARD].sort((a, b) =>
       (b.gold - a.gold) || (b.silver - a.silver) || a.name.localeCompare(b.name)
@@ -551,69 +547,46 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="num">${i+1}</td>
-        <td><div class="player">
-          <span class="swatch" style="background:${BETS.find(b => b.name === p.name)?.color || '#888'}"></span>
-          ${p.name}
-        </div></td>
+        <td><div class="player">${swatchHtml(p.name)}</div></td>
         <td>${p.gold ? `<span class="medal">🥇</span>×${p.gold}` : '—'}</td>
         <td>${p.silver ? `<span class="medal">🥈</span>×${p.silver}` : '—'}</td>
       `;
       lbBody.appendChild(tr);
     });
 
-    // debts
-    const swatchHtml = (n) => {
-      const c = BETS.find(b => b.name === n)?.color || '#888';
-      return `<span class="swatch" style="background:${c}"></span>${n}`;
-    };
     const debtsEl = document.getElementById('debts');
-    if (DEBTS.length === 0) {
-      debtsEl.innerHTML = `<li style="color:var(--fg-dim)">No outstanding debts.</li>`;
-    } else {
-      DEBTS.forEach(d => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <div class="who">
-            <span class="from">${d.from.map(swatchHtml).join(' & ')}</span>
-            <span style="color:var(--fg-dim)"> owe </span>
-            <span class="to">${d.to.map(swatchHtml).join(' & ')}</span>
-          </div>
-          <div class="meta">🍽️ ${d.item}${d.note ? ' · ' + d.note : ''}</div>
-        `;
-        debtsEl.appendChild(li);
-      });
-    }
+    DEBTS.forEach(d => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <div class="who">
+          <span class="from">${d.from.map(swatchHtml).join(' & ')}</span>
+          <span style="color:var(--fg-dim)"> owe </span>
+          <span class="to">${d.to.map(swatchHtml).join(' & ')}</span>
+        </div>
+        <div class="meta">🍽️ ${d.item}${d.note ? ' · ' + d.note : ''}</div>
+      `;
+      debtsEl.appendChild(li);
+    });
 
-    // violations
     const vioEl = document.getElementById('violations');
-    if (VIOLATIONS.length === 0) {
-      vioEl.innerHTML = `<li style="color:var(--fg-dim)">No violations on record.</li>`;
-    } else {
-      VIOLATIONS.forEach(v => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <div class="name">${swatchHtml(v.name)}</div>
-          <div class="meta">${v.date} · ${v.note}</div>
-        `;
-        vioEl.appendChild(li);
-      });
-    }
+    VIOLATIONS.forEach(v => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <div class="name">${swatchHtml(v.name)}</div>
+        <div class="meta">${v.date} · ${v.note}</div>
+      `;
+      vioEl.appendChild(li);
+    });
 
-    // initial standings render with no price
     renderStandings(null);
 
     if (isPostEarnings) {
-      // Earnings day is over — fetch the close once and freeze.
       document.getElementById('dateLine').textContent = `Earnings day · ${EARNINGS_DATE} · final`;
-      const footer = document.querySelector('.footer');
-      if (footer) footer.textContent = `Frozen on close of ${EARNINGS_DATE}`;
+      document.querySelector('.footer').textContent = `Frozen on close of ${EARNINGS_DATE}`;
       loadFinalClose();
     } else {
-      // Earnings day is now — poll the live price.
       fetchPrice();
-      setInterval(() => {
-        if (!document.hidden) fetchPrice();
-      }, POLL_MS);
+      setInterval(() => { if (!document.hidden) fetchPrice(); }, POLL_MS);
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) fetchPrice();
       });
@@ -624,47 +597,34 @@
     const cacheKey = 'lmndFinalPrice_' + EARNINGS_DATE;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-      try {
-        const { price, prevClose } = JSON.parse(cached);
-        last = { price, prevClose, marketState: 'CLOSED', ts: Date.now() };
-        render(last, false);
-        setBadge('final', 'final');
-        return;
-      } catch (_) { /* fall through to refetch */ }
+      const { price, prevClose } = JSON.parse(cached);
+      last = { price, prevClose, marketState: 'CLOSED', ts: Date.now() };
+      render(last, false);
+      setBadge('final', 'final');
+      return;
     }
-    setBadge('loading final…', '');
+    setBadge('loading…', '');
     let j;
     try {
-      j = await fetchViaProxies(HIST_TARGET, 'loading final via');
+      j = await fetchViaProxies(HIST_TARGET);
     } catch (e) {
       setBadge('offline', 'error');
       const banner = document.getElementById('banner');
-      if (banner) {
-        banner.className = 'banner show';
-        banner.textContent = `Could not load the closing price for ${EARNINGS_DATE}. Try again later.`;
-      }
+      banner.className = 'banner show';
+      banner.textContent = `Could not load the closing price for ${EARNINGS_DATE}. Try again later.`;
       return;
     }
     const result = j.chart.result[0];
-    const timestamps = result.timestamp || [];
-    const closes = result.indicators?.quote?.[0]?.close || [];
-    let closePrice = null;
+    const timestamps = result.timestamp;
+    const closes = result.indicators.quote[0].close;
+    let closePrice = result.meta.regularMarketPrice;
     for (let i = timestamps.length - 1; i >= 0; i--) {
-      const d = nyDate(new Date(timestamps[i] * 1000));
-      if (d === EARNINGS_DATE && closes[i] != null) {
+      if (nyDate(new Date(timestamps[i] * 1000)) === EARNINGS_DATE && closes[i] != null) {
         closePrice = closes[i];
         break;
       }
     }
-    if (closePrice == null) {
-      // fall back to meta.regularMarketPrice (latest close)
-      closePrice = result.meta.regularMarketPrice ?? null;
-    }
-    if (closePrice == null) {
-      setBadge('no data', 'error');
-      return;
-    }
-    const prevClose = result.meta.chartPreviousClose ?? null;
+    const prevClose = result.meta.chartPreviousClose;
     localStorage.setItem(cacheKey, JSON.stringify({ price: closePrice, prevClose }));
     last = { price: closePrice, prevClose, marketState: 'CLOSED', ts: Date.now() };
     render(last, false);
@@ -678,19 +638,16 @@
   const LIVE_TARGET = `https://query1.finance.yahoo.com/v8/finance/chart/${SYMBOL}?interval=1m&range=1d&includePrePost=true`;
   const HIST_TARGET = `https://query1.finance.yahoo.com/v8/finance/chart/${SYMBOL}?interval=1d&range=10d`;
 
-  // Tried in order; first one that returns parseable data wins.
-  // Both have proper CORS headers and were verified working from this machine.
+  // Both proxies set proper CORS headers; tried in order until one returns valid JSON.
   function buildProxies(target) {
     return [
       {
         name: 'jina',
         url: 'https://r.jina.ai/' + target,
+        // r.jina.ai wraps the body with a "Title: … URL Source: … Markdown Content:" preamble.
         parse: async (r) => {
-          // r.jina.ai wraps body with a "Title: … URL Source: … Markdown Content:" preamble.
           const text = await r.text();
-          const i = text.indexOf('{');
-          if (i < 0) throw new Error('no json in body');
-          return JSON.parse(text.slice(i));
+          return JSON.parse(text.slice(text.indexOf('{')));
         },
       },
       {
@@ -701,7 +658,6 @@
     ];
   }
 
-  // YYYY-MM-DD string in America/New_York time, used to compare against EARNINGS_DATE.
   function nyDate(d = new Date()) {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/New_York',
@@ -721,57 +677,36 @@
   }
 
   function setBadge(text, cls) {
-    const badge = document.getElementById('marketBadge');
-    const badgeText = document.getElementById('marketText');
-    if (!badge) return;
-    badge.className = 'badge ' + (cls || '');
-    badgeText.textContent = text;
+    document.getElementById('marketBadge').className = 'badge ' + (cls || '');
+    document.getElementById('marketText').textContent = text;
   }
 
-  async function fetchViaProxies(target, statusLabel) {
-    const proxies = buildProxies(target);
-    let j = null, lastErr = null;
-    for (const p of proxies) {
-      const t0 = performance.now();
-      if (statusLabel) setBadge(`${statusLabel} ${p.name}…`, '');
+  async function fetchViaProxies(target) {
+    let lastErr;
+    for (const p of buildProxies(target)) {
       try {
         const r = await fetchWithTimeout(p.url, FETCH_TIMEOUT_MS);
         if (!r.ok) throw new Error('http ' + r.status);
-        j = await p.parse(r);
-        if (j?.chart?.result?.[0]?.meta) {
-          console.log(`[${p.name}] ok in ${Math.round(performance.now()-t0)}ms`);
-          return j;
-        }
+        const j = await p.parse(r);
+        if (j?.chart?.result?.[0]?.meta) return j;
         throw new Error('no meta');
       } catch (e) {
-        const ms = Math.round(performance.now() - t0);
-        console.warn(`[${p.name}] failed in ${ms}ms:`, e.message || e);
+        console.warn(`[${p.name}] failed:`, e.message || e);
         lastErr = e;
       }
     }
-    throw lastErr || new Error('all proxies failed');
+    throw lastErr;
   }
 
   async function fetchPrice() {
-    let j = null;
     try {
-      j = await fetchViaProxies(LIVE_TARGET, 'trying');
-    } catch (_) {}
-    try {
-      if (!j) throw new Error('all proxies failed');
+      const j = await fetchViaProxies(LIVE_TARGET);
       const meta = j.chart.result[0].meta;
-
-      const state = meta.marketState || 'UNKNOWN';
+      const state = meta.marketState;
       let price = meta.regularMarketPrice;
       if (state === 'PRE' && meta.preMarketPrice != null) price = meta.preMarketPrice;
       else if ((state === 'POST' || state === 'POSTPOST' || state === 'CLOSED') && meta.postMarketPrice != null) price = meta.postMarketPrice;
-
-      last = {
-        price,
-        prevClose: meta.chartPreviousClose ?? meta.previousClose ?? null,
-        marketState: state,
-        ts: Date.now(),
-      };
+      last = { price, prevClose: meta.chartPreviousClose, marketState: state, ts: Date.now() };
       render(last, false);
     } catch (err) {
       console.warn('fetch failed', err);
@@ -825,16 +760,11 @@
     } else {
       banner.className = 'banner';
       const labels = {
-        REGULAR: 'live',
-        PRE: 'pre-market',
-        PREPRE: 'pre-market',
-        POST: 'after-hours',
-        POSTPOST: 'after-hours',
-        CLOSED: 'closed',
+        REGULAR: 'live', PRE: 'pre-market',
+        POST: 'after-hours', POSTPOST: 'after-hours', CLOSED: 'closed',
       };
-      const stateLabel = labels[state.marketState] || 'live';
       badge.className = 'badge ' + (state.marketState === 'REGULAR' ? 'live' : '');
-      badgeText.textContent = stateLabel;
+      badgeText.textContent = labels[state.marketState] || 'live';
     }
     updated.textContent = `updated ${new Date(state.ts).toLocaleTimeString()}`;
 
@@ -881,10 +811,8 @@
     });
   }
 
-  // ─── Boot ────────────────────────────────────────────
-  // Done last so every const / function above is fully initialized before
-  // unlock() (which may run synchronously when the user is already authed)
-  // can call init() / fetchPrice().
+  // Boot last so all consts/functions above are initialized before unlock()
+  // runs synchronously (when the user is already authed).
   if (localStorage.getItem('lmndBetsAuthed') === '1') {
     unlock();
   } else {
