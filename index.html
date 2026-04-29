@@ -113,6 +113,12 @@
     .badge.live .dot { background: var(--up); box-shadow: 0 0 0 0 rgba(46,204,113,.7); animation: pulse 1.6s infinite; }
     .badge.stale .dot { background: var(--yellow); }
     .badge.error .dot { background: var(--down); }
+    .badge.final {
+      background: rgba(255,200,61,.12);
+      border-color: rgba(255,200,61,.45);
+      color: var(--gold);
+    }
+    .badge.final .dot { background: var(--gold); }
     @keyframes pulse {
       0% { box-shadow: 0 0 0 0 rgba(46,204,113,.6); }
       70% { box-shadow: 0 0 0 8px rgba(46,204,113,0); }
@@ -385,6 +391,9 @@
   const POLL_MS = 15000;
   const BAR_MIN = 45;
   const BAR_MAX = 95;
+  // Earnings day in NY local time. After this date we stop polling and freeze
+  // the page on the closing price of this day.
+  const EARNINGS_DATE = '2026-04-29';
 
   const BETS = [
     { name: 'Adina', bet: 69.0, color: '#ff5fa2' },
@@ -507,42 +516,113 @@
     // initial standings render with no price
     renderStandings(null);
 
-    // start polling
-    fetchPrice();
-    setInterval(() => {
-      if (!document.hidden) fetchPrice();
-    }, POLL_MS);
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) fetchPrice();
-    });
+    if (isPostEarnings) {
+      // Earnings day is over — fetch the close once and freeze.
+      document.getElementById('dateLine').textContent = `Earnings day · ${EARNINGS_DATE} · final`;
+      const footer = document.querySelector('.footer');
+      if (footer) footer.textContent = `Frozen on close of ${EARNINGS_DATE}`;
+      loadFinalClose();
+    } else {
+      // Earnings day is now — poll the live price.
+      fetchPrice();
+      setInterval(() => {
+        if (!document.hidden) fetchPrice();
+      }, POLL_MS);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) fetchPrice();
+      });
+    }
+  }
+
+  async function loadFinalClose() {
+    const cacheKey = 'lmndFinalPrice_' + EARNINGS_DATE;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { price, prevClose } = JSON.parse(cached);
+        last = { price, prevClose, marketState: 'CLOSED', ts: Date.now() };
+        render(last, false);
+        setBadge('final', 'final');
+        return;
+      } catch (_) { /* fall through to refetch */ }
+    }
+    setBadge('loading final…', '');
+    let j;
+    try {
+      j = await fetchViaProxies(HIST_TARGET, 'loading final via');
+    } catch (e) {
+      setBadge('offline', 'error');
+      const banner = document.getElementById('banner');
+      if (banner) {
+        banner.className = 'banner show';
+        banner.textContent = `Could not load the closing price for ${EARNINGS_DATE}. Try again later.`;
+      }
+      return;
+    }
+    const result = j.chart.result[0];
+    const timestamps = result.timestamp || [];
+    const closes = result.indicators?.quote?.[0]?.close || [];
+    let closePrice = null;
+    for (let i = timestamps.length - 1; i >= 0; i--) {
+      const d = nyDate(new Date(timestamps[i] * 1000));
+      if (d === EARNINGS_DATE && closes[i] != null) {
+        closePrice = closes[i];
+        break;
+      }
+    }
+    if (closePrice == null) {
+      // fall back to meta.regularMarketPrice (latest close)
+      closePrice = result.meta.regularMarketPrice ?? null;
+    }
+    if (closePrice == null) {
+      setBadge('no data', 'error');
+      return;
+    }
+    const prevClose = result.meta.chartPreviousClose ?? null;
+    localStorage.setItem(cacheKey, JSON.stringify({ price: closePrice, prevClose }));
+    last = { price: closePrice, prevClose, marketState: 'CLOSED', ts: Date.now() };
+    render(last, false);
+    setBadge('final', 'final');
   }
 
   // ─── Live data ───────────────────────────────────────
   let last = { price: null, prevClose: null, marketState: null, ts: null };
 
-  const TARGET = `https://query1.finance.yahoo.com/v8/finance/chart/${SYMBOL}?interval=1m&range=1d&includePrePost=true`;
   const FETCH_TIMEOUT_MS = 9000;
+  const LIVE_TARGET = `https://query1.finance.yahoo.com/v8/finance/chart/${SYMBOL}?interval=1m&range=1d&includePrePost=true`;
+  const HIST_TARGET = `https://query1.finance.yahoo.com/v8/finance/chart/${SYMBOL}?interval=1d&range=10d`;
 
   // Tried in order; first one that returns parseable data wins.
   // Both have proper CORS headers and were verified working from this machine.
-  const PROXIES = [
-    {
-      name: 'jina',
-      url: 'https://r.jina.ai/' + TARGET,
-      parse: async (r) => {
-        // r.jina.ai wraps body with a "Title: … URL Source: … Markdown Content:" preamble.
-        const text = await r.text();
-        const i = text.indexOf('{');
-        if (i < 0) throw new Error('no json in body');
-        return JSON.parse(text.slice(i));
+  function buildProxies(target) {
+    return [
+      {
+        name: 'jina',
+        url: 'https://r.jina.ai/' + target,
+        parse: async (r) => {
+          // r.jina.ai wraps body with a "Title: … URL Source: … Markdown Content:" preamble.
+          const text = await r.text();
+          const i = text.indexOf('{');
+          if (i < 0) throw new Error('no json in body');
+          return JSON.parse(text.slice(i));
+        },
       },
-    },
-    {
-      name: 'allorigins',
-      url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(TARGET),
-      parse: (r) => r.json(),
-    },
-  ];
+      {
+        name: 'allorigins',
+        url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target),
+        parse: (r) => r.json(),
+      },
+    ];
+  }
+
+  // YYYY-MM-DD string in America/New_York time, used to compare against EARNINGS_DATE.
+  function nyDate(d = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(d);
+  }
+  const isPostEarnings = nyDate() > EARNINGS_DATE;
 
   async function fetchWithTimeout(url, ms) {
     const ctl = new AbortController();
@@ -562,29 +642,37 @@
     badgeText.textContent = text;
   }
 
-  async function fetchPrice() {
+  async function fetchViaProxies(target, statusLabel) {
+    const proxies = buildProxies(target);
     let j = null, lastErr = null;
-    for (const p of PROXIES) {
+    for (const p of proxies) {
       const t0 = performance.now();
-      setBadge(`trying ${p.name}…`, '');
+      if (statusLabel) setBadge(`${statusLabel} ${p.name}…`, '');
       try {
         const r = await fetchWithTimeout(p.url, FETCH_TIMEOUT_MS);
         if (!r.ok) throw new Error('http ' + r.status);
         j = await p.parse(r);
         if (j?.chart?.result?.[0]?.meta) {
           console.log(`[${p.name}] ok in ${Math.round(performance.now()-t0)}ms`);
-          break;
+          return j;
         }
         throw new Error('no meta');
       } catch (e) {
         const ms = Math.round(performance.now() - t0);
         console.warn(`[${p.name}] failed in ${ms}ms:`, e.message || e);
         lastErr = e;
-        j = null;
       }
     }
+    throw lastErr || new Error('all proxies failed');
+  }
+
+  async function fetchPrice() {
+    let j = null;
     try {
-      if (!j) throw lastErr || new Error('all proxies failed');
+      j = await fetchViaProxies(LIVE_TARGET, 'trying');
+    } catch (_) {}
+    try {
+      if (!j) throw new Error('all proxies failed');
       const meta = j.chart.result[0].meta;
 
       const state = meta.marketState || 'UNKNOWN';
