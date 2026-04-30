@@ -297,6 +297,17 @@
     .violations li { border-left: 3px solid var(--down); }
     .violations .name { font-weight: 600; }
 
+    .debts li, .violations li { display: flex; flex-direction: column; gap: 4px; }
+    .row-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .quarter {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--fg-mid); background: var(--bg-2);
+      border: 1px solid var(--line); border-radius: 6px;
+      padding: 2px 6px; white-space: nowrap;
+    }
+
     /* ─── Sidebar leaderboard ─── */
     .leaderboard { width: 100%; border-collapse: collapse; }
     .leaderboard th, .leaderboard td {
@@ -438,17 +449,18 @@
   const LEADERBOARD = [
     { name: 'Nati',  gold: 1, silver: 0 },
     { name: 'Tal',   gold: 1, silver: 0 },
-    { name: 'Yael',  gold: 0, silver: 1 },
-    { name: 'Adina', gold: 0, silver: 1 },
+    { name: 'Adina', gold: 1, silver: 1 },
+    { name: 'Yael',  gold: 0, silver: 2 },
   ];
 
   // Top two on each earnings win a dinner paid for by the bottom two.
   const DEBTS = [
-    { from: ['Yael', 'Nati'], to: ['Adina', 'Tal'], item: 'Dinner', note: 'unpaid since previous earnings' },
+    { from: ['Yael', 'Nati'], to: ['Adina', 'Tal'], item: 'Dinner', quarter: 'Q4-25', note: 'May 7 at Abri' },
+    { from: ['Tal', 'Nati', 'Yael'], to: ['Adina'], item: 'Dinner', quarter: 'Q1-26', note: 'Yael included due to violation' },
   ];
 
   const VIOLATIONS = [
-    { name: 'Yael', date: '2026-04-28', note: 'Submitted bet late' },
+    { name: 'Yael', date: 'Q1-26', note: 'Submitted bet late' },
   ];
 
   // ─── Range math ──────────────────────────────────────
@@ -558,10 +570,13 @@
     DEBTS.forEach(d => {
       const li = document.createElement('li');
       li.innerHTML = `
-        <div class="who">
-          <span class="from">${d.from.map(swatchHtml).join(' & ')}</span>
-          <span style="color:var(--fg-dim)"> owe </span>
-          <span class="to">${d.to.map(swatchHtml).join(' & ')}</span>
+        <div class="row-top">
+          <div class="who">
+            <span class="from">${d.from.map(swatchHtml).join(' & ')}</span>
+            <span style="color:var(--fg-dim)"> owe </span>
+            <span class="to">${d.to.map(swatchHtml).join(' & ')}</span>
+          </div>
+          ${d.quarter ? `<span class="quarter">${d.quarter}</span>` : ''}
         </div>
         <div class="meta">🍽️ ${d.item}${d.note ? ' · ' + d.note : ''}</div>
       `;
@@ -572,8 +587,11 @@
     VIOLATIONS.forEach(v => {
       const li = document.createElement('li');
       li.innerHTML = `
-        <div class="name">${swatchHtml(v.name)}</div>
-        <div class="meta">${v.date} · ${v.note}</div>
+        <div class="row-top">
+          <div class="name">${swatchHtml(v.name)}</div>
+          <span class="quarter">${v.date}</span>
+        </div>
+        <div class="meta">${v.note}</div>
       `;
       vioEl.appendChild(li);
     });
